@@ -20,191 +20,85 @@
               <div class="candidate-wrapper-content-grid">
                 <div class="toolbar-grid bg-white" :class="{ 'has-selection': selectedCount > 0 }">
                   <div class="toolbar-container d-flex align-items-center justify-content-between">
-                    <div class="toolbar-grid-default">
-                      <div class="toolbar-grid-left">
-                        <div class="search-grid d-flex">
-                          <div class="search-ontab">
-                            <div class="texteditor-container wrap-icon-button-toolbar">
-                              <div class="button-container">
-                                <div class="ai-search">
-                                  <div class="button-content">
-                                    <i class="search"></i>
-                                  </div>
-                                </div>
-                              </div>
-                              <div class="input-container">
-                                <input
-                                  class="text-editor-input"
-                                  type="search"
-                                  placeholder="Tìm kiếm hoặc nhờ AI trợ giúp"
-                                  autocomplete="off"
-                                  v-model="query"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                    <template v-if="selectedCount === 0">
+                      <div
+                        class="toolbar-grid-default d-flex align-items-center justify-content-between"
+                        style="width: 100%"
+                      >
+                        <CandidateToolBar
+                          :query="query"
+                          @update:query="query = $event"
+                          @filter="onFilter"
+                          @export="onExport"
+                          @history="onHistory"
+                          @settings="onSettings"
+                        />
                       </div>
+                    </template>
 
-                      <div class="toolbar-grid-right">
-                        <div class="filter-area wrap-icon-button-toolbar m-r-8" title="Bộ lọc">
-                          <div class="icon-filter ic-svg"></div>
-                        </div>
-                        <div class="wrap-icon-button-toolbar m-r-8" title="Xuất khẩu">
-                          <div class="icon-export ic-svg"></div>
-                        </div>
-                        <div class="wrap-icon-button-toolbar m-r-8" title="Xem nhanh hoạt động">
-                          <div class="icon-interactive-history ic-svg"></div>
-                        </div>
-                        <div class="z-index-default dropdown">
-                          <div class="wrap-icon-button-setting">
-                            <div class="icon-setting ic-svg"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="toolbar-grid-selected">
-                      <div class="toolbar-grid-left d-flex align-items-center">
-                        <div class="selection-count">
-                          <strong>{{ selectedCount }}</strong> đang chọn
-                        </div>
-                        <button type="button" class="btn-link m-l-12" @click="clearSelection">
-                          Bỏ chọn
-                        </button>
-                      </div>
-
-                      <div class="toolbar-grid-right d-flex align-items-center">
-                        <button
-                          type="button"
-                          class="btn btn-secondary-2 wrap-icon-button-toolbar m-r-8"
-                        >
-                          <span class="icon-email m-r-8"></span>
-                          Gửi email
-                        </button>
-
-                        <button
-                          type="button"
-                          class="btn btn-secondary-2 wrap-icon-button-toolbar m-r-8"
-                        >
-                          <span class="icon-tag m-r-8"></span>
-                          Quản lý thẻ
-                        </button>
-
-                        <button
-                          type="button"
-                          class="btn btn-secondary-2 wrap-icon-button-toolbar m-r-8"
-                        >
-                          <span class="icon-document-check m-r-8"></span>
-                          Tạo công việc
-                        </button>
-
-                        <button
-                          type="button"
-                          class="btn btn-secondary-2 wrap-icon-button-toolbar m-r-8"
-                        >
-                          <span class="icon-sb-recruiment-campaign m-r-8"></span>
-                          Thêm vào chiến dịch
-                        </button>
-
-                        <button
-                          type="button"
-                          class="btn btn-secondary-2 wrap-icon-button-toolbar m-r-8"
-                        >
-                          <span class="icon-delete m-r-8"></span>
-                          Xóa ứng viên
-                        </button>
-
-                        <button type="button" class="btn btn-secondary-2">
-                          <span class="icon-more-vertical m-r-8"></span>
-                        </button>
-                      </div>
-                    </div>
+                    <template v-else>
+                      <CandidateSelectionBar
+                        :selected-count="selectedCount"
+                        @clear="clearSelection"
+                        @send-email="onSendEmail"
+                        @manage-tags="onManageTags"
+                        @create-job="onCreateJob"
+                        @add-campaign="onAddCampaign"
+                        @delete="onDeleteCandidates"
+                        @more="onMoreActions"
+                      />
+                    </template>
                   </div>
                 </div>
 
-                <div class="table-candidate">
-                  <MsTable
-                    :rows="pageItems"
-                    :columns="columns"
-                    row-key="id"
-                    selectable
-                    :selected-keys="selectedKeysModel"
-                    @update:selected-keys="onUpdateSelectedKeys"
-                    show-footer
-                    :total="total"
-                    :page="page"
-                    :page-size="pageSize"
-                    :page-sizes="[25, 50, 100]"
-                    table-class="candidates-table"
-                    @update:page="page = $event"
-                    @update:page-size="pageSize = $event"
-                  >
-                    <template #cell-fullName="{ row }">
-                      <span
-                        class="avatar"
-                        :style="{ backgroundColor: avatarBg(row) }"
-                        :title="safeText(row.fullName)"
-                      >
-                        {{ initials(row.fullName) }}
-                      </span>
-                      <div class="name-block">
-                        <div class="name">
-                          {{ safeText(row.fullName) }}
-                          <span v-if="row.isNew" class="tag-new">
-                            <span class="new-candi">MỚI</span>
-                          </span>
-                        </div>
-                        <div class="sub">{{ safeText(row.position) }}</div>
-                      </div>
-                    </template>
-
-                    <template #cell-rate="{ row }">
-                      <span
-                        v-if="rateToNumber(row.rate)"
-                        class="rating-stars"
-                        :title="`${rateToNumber(row.rate)}/5`"
-                      >
-                        <i
-                          v-for="i in 5"
-                          :key="i"
-                          class="fa"
-                          :class="i <= rateToNumber(row.rate) ? 'fa-star' : 'fa-star-o'"
-                        ></i>
-                      </span>
-                      <span v-else>—</span>
-                    </template>
-
-                    <template #cell-personaFit="{ row }">
-                      <span
-                        v-if="isFiniteNumber(row.personaFit)"
-                        class="compatibility-level"
-                        :class="getPersonaFitClass(row.personaFit)"
-                        :title="`Phù hợp với chân dung: ${personaSafe(row.personaFit)}%`"
-                      >
-                        {{ personaSafe(row.personaFit) }}%
-                      </span>
-                      <span v-else>—</span>
-                    </template>
-
-                    <template #cell-actions>
-                      <button
-                        type="button"
-                        class="btn-row-edit"
-                        aria-label="Chỉnh sửa"
-                        title="Chỉnh sửa"
-                      >
-                        <span class="icon-edit"></span>
-                      </button>
-                    </template>
-                  </MsTable>
-                </div>
+                <CandidateTable
+                  :rows="pageItems"
+                  :columns="columns"
+                  :selected-keys="selectedKeysModel"
+                  :total="total"
+                  :page="page"
+                  :page-size="pageSize"
+                  @update:selected-keys="onUpdateSelectedKeys"
+                  @update:page="page = $event"
+                  @update:page-size="pageSize = $event"
+                  @edit="onEditCandidate"
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Candidate Add Modal -->
+    <CandidateModal
+      :visible="candidateModalVisible"
+      mode="add"
+      :loading="modalLoading"
+      @update:visible="candidateModalVisible = $event"
+      @submit="onCandidateModalSubmit"
+      @cancel="candidateModalVisible = false"
+    />
+
+    <!-- Candidate Edit Modal -->
+    <CandidateEditModal
+      :visible="candidateEditModalVisible"
+      :candidate="currentCandidate"
+      :loading="modalLoading"
+      @update:visible="candidateEditModalVisible = $event"
+      @submit="onCandidateEditModalSubmit"
+      @cancel="candidateEditModalVisible = false"
+    />
+
+    <!-- Delete Confirm Modal -->
+    <DeleteConfirmModal
+      :visible="deleteModalVisible"
+      :count="selectedCount"
+      :loading="modalLoading"
+      @update:visible="deleteModalVisible = $event"
+      @confirm="onDeleteConfirm"
+      @cancel="deleteModalVisible = false"
+    />
   </DefaultLayout>
 </template>
 
@@ -213,8 +107,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { DEFAULT_CANDIDATES } from '@/data/defaultCandidates'
-import MsTable from '@/components/ms-table/MsTable.vue'
 import MsSplitButton from '@/components/ms-button/MsSplitButton.vue'
+import CandidateToolBar from './components/CandidateToolBar.vue'
+import CandidateSelectionBar from './components/CandidateSelectionBar.vue'
+import CandidateTable from './components/CandidateTable.vue'
+import CandidateModal from './components/CandidateModal.vue'
+import CandidateEditModal from './components/CandidateEditModal.vue'
+import DeleteConfirmModal from './components/DeleteConfirmModal.vue'
 
 const LS_KEY = 'misa_candidates'
 
@@ -223,6 +122,14 @@ const page = ref(1)
 const pageSize = ref(25)
 
 const selectedIds = ref(new Set())
+
+// Modal state
+const candidateModalVisible = ref(false)
+const candidateEditModalVisible = ref(false)
+const deleteModalVisible = ref(false)
+const candidateModalMode = ref('add')
+const currentCandidate = ref(null)
+const modalLoading = ref(false)
 
 const columns = Object.freeze([
   { key: 'phone', title: 'Số điện thoại', class: 'col-phone' },
@@ -260,98 +167,12 @@ const selectedKeysModel = computed({
   },
 })
 
-function safeText(v) {
-  const s = (v ?? '').toString().trim()
-  return s.length ? s : '—'
-}
-
 function normalizeText(s) {
   return (s ?? '').toString().trim().toLowerCase()
 }
 
 function normalizePhone(phone) {
   return (phone ?? '').toString().replace(/\D+/g, '')
-}
-
-function initials(fullName) {
-  const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean)
-  if (!parts.length) return '--'
-  const a = parts[0][0] ?? ''
-  const b = parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : ''
-  return (a + b).toUpperCase()
-}
-
-function hashString(str) {
-  const s = (str ?? '').toString()
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
-  return Math.abs(h)
-}
-
-function avatarBg(candidate) {
-  const palette = [
-    '#22C55E',
-    '#14B8A6',
-    '#06B6D4',
-    '#A3E635',
-    '#F59E0B',
-    '#F97316',
-    '#3B82F6',
-    '#6366F1',
-    '#A855F7',
-    '#EC4899',
-    '#EF4444',
-    '#10B981',
-  ]
-  const key = (candidate?.id ?? candidate?.fullName ?? '').toString()
-  const idx = hashString(key) % palette.length
-  return palette[idx]
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n))
-}
-
-function rateToNumber(rate) {
-  if (rate == null) return 0
-
-  const asNumber = Number(rate)
-  if (Number.isFinite(asNumber)) return clamp(Math.round(asNumber), 0, 5)
-
-  const s = normalizeText(rate)
-  const map = {
-    'xuất sắc': 5,
-    'xuat sac': 5,
-    tốt: 4,
-    tot: 4,
-    khá: 3,
-    kha: 3,
-    'trung bình': 2,
-    'trung binh': 2,
-    kém: 1,
-    kem: 1,
-    '-': 0,
-    '—': 0,
-    '': 0,
-  }
-  return map[s] ?? 0
-}
-
-function isFiniteNumber(v) {
-  return Number.isFinite(Number(v))
-}
-
-function personaSafe(score) {
-  const n = Number(score)
-  if (!Number.isFinite(n)) return 0
-  return clamp(Math.round(n), 1, 100)
-}
-
-function getPersonaFitClass(score) {
-  const safe = personaSafe(score)
-  if (safe >= 70) return 'compatibility-level--good'
-  if (safe >= 40) return 'compatibility-level--medium'
-  return 'compatibility-level--bad'
 }
 
 function loadCandidates() {
@@ -370,6 +191,10 @@ function seedIfNeeded() {
   if (existing.length) return existing
   localStorage.setItem(LS_KEY, JSON.stringify(DEFAULT_CANDIDATES))
   return DEFAULT_CANDIDATES
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n))
 }
 
 const allCandidates = ref([])
@@ -428,10 +253,133 @@ function clearSelection() {
 }
 
 function onAddCandidate() {
-  // sẽ nối sang modal/form ở bước tiếp theo
+  candidateModalMode.value = 'add'
+  currentCandidate.value = null
+  candidateModalVisible.value = true
 }
 
 function onToggleAddMenu() {
-  // TODO: mở menu dropdown (bước sau làm popup/menu)
+  console.log('Toggle add menu - TODO: open dropdown menu')
+}
+
+function onFilter() {
+  console.log('Filter clicked')
+}
+
+function onExport() {
+  console.log('Export clicked')
+}
+
+function onHistory() {
+  console.log('History clicked')
+}
+
+function onSettings() {
+  console.log('Settings clicked')
+}
+
+function onSendEmail() {
+  console.log('Send email to', selectedCount.value, 'candidates')
+}
+
+function onManageTags() {
+  console.log('Manage tags for', selectedCount.value, 'candidates')
+}
+
+function onCreateJob() {
+  console.log('Create job for', selectedCount.value, 'candidates')
+}
+
+function onAddCampaign() {
+  console.log('Add campaign for', selectedCount.value, 'candidates')
+}
+
+function onDeleteCandidates() {
+  deleteModalVisible.value = true
+}
+
+function onMoreActions() {
+  console.log('More actions for', selectedCount.value, 'candidates')
+}
+
+function onEditCandidate(candidate) {
+  currentCandidate.value = { ...candidate }
+  candidateEditModalVisible.value = true
+}
+
+/**
+ * Xử lý submit form thêm/chỉnh sửa ứng viên
+ * @param {Object} formData - Dữ liệu form
+ * @createdBy: dchao - 24.12.2025
+ */
+function onCandidateModalSubmit(formData) {
+  modalLoading.value = true
+
+  // Simulate API call
+  setTimeout(() => {
+    const allCandidates = loadCandidates()
+
+    // Add new candidate
+    const newCandidate = {
+      id: Math.max(0, ...allCandidates.map((c) => c.id || 0)) + 1,
+      ...formData,
+      appliedDate: new Date().toISOString().split('T')[0],
+      source: 'Manual',
+      rate: 0,
+      personaFit: 0,
+    }
+    allCandidates.push(newCandidate)
+
+    // Save to localStorage
+    localStorage.setItem(LS_KEY, JSON.stringify(allCandidates))
+    allCandidates.value = allCandidates
+
+    // Close modal
+    candidateModalVisible.value = false
+    modalLoading.value = false
+  }, 500)
+}
+
+function onCandidateEditModalSubmit({ data }) {
+  modalLoading.value = true
+  setTimeout(() => {
+    const allCandidates = loadCandidates()
+    const idx = allCandidates.findIndex((c) => c.id === currentCandidate.value.id)
+
+    if (idx !== -1) {
+      allCandidates[idx] = { ...allCandidates[idx], ...data }
+
+      // Save to localStorage
+      localStorage.setItem(LS_KEY, JSON.stringify(allCandidates))
+      allCandidates.value = allCandidates
+    }
+
+    candidateEditModalVisible.value = false
+    modalLoading.value = false
+  }, 500)
+}
+
+/**
+ * Xử lý xác nhận xóa ứng viên
+ * @createdBy: dchao - 24.12.2025
+ */
+function onDeleteConfirm() {
+  modalLoading.value = true
+
+  // Simulate API call
+  setTimeout(() => {
+    const allCandidates = loadCandidates()
+    const selectedArray = Array.from(selectedIds.value)
+
+    // Remove selected candidates
+    const filtered = allCandidates.filter((c) => !selectedArray.includes(String(c.id)))
+    localStorage.setItem(LS_KEY, JSON.stringify(filtered))
+    allCandidates.value = filtered
+
+    // Clear selection and close modal
+    clearSelection()
+    deleteModalVisible.value = false
+    modalLoading.value = false
+  }, 500)
 }
 </script>

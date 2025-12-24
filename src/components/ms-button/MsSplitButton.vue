@@ -4,7 +4,7 @@ import MsButton from './MsButton.vue'
 defineProps({
   label: { type: String, required: true },
   iconClass: { type: String, default: 'icon-add' },
-  mainVariant: { type: String, default: 'primary' }, // thường là primary
+  mainVariant: { type: String, default: 'primary' },
 })
 
 const emit = defineEmits(['click', 'toggle'])
@@ -12,7 +12,12 @@ const emit = defineEmits(['click', 'toggle'])
 
 <template>
   <div class="d-flex">
-    <MsButton :variant="mainVariant" class="item-head-left" :icon-class="iconClass" @click="emit('click')">
+    <MsButton
+      :variant="mainVariant"
+      class="item-head-left"
+      :icon-class="iconClass"
+      @click="emit('click')"
+    >
       <span class="title-name pl-2">{{ label }}</span>
     </MsButton>
 
