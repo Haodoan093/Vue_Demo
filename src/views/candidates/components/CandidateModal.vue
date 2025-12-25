@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useForm, useField } from 'vee-validate'
+import * as yup from 'yup'
 import MsModal from '@/components/ms-modal/MsModal.vue'
 import MsInput from '@/components/ms-input/MsInput.vue'
 import MsTextArea from '@/components/ms-textarea/MsTextArea.vue'
 import MsSelect from '@/components/ms-select/MsSelect.vue'
+import MsDatePicker from '@/components/ms-datepicker/MsDatePicker.vue'
 
 //#region Props
 const props = defineProps({
@@ -31,32 +34,67 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'submit', 'cancel'])
 //#endregion
 
-//#region State
-const formData = ref({
-  // Basic Info
-  fullName: '',
-  dob: '',
-  gender: '',
-  area: '',
-  phone: '',
-  email: '',
-  address: '',
-  // Education
-  educations: [{ eduLevel: '', school: '', major: '' }],
-  // Application Info
-  appliedDate: '',
-  source: '',
-  exploiter: '',
-  collaborator: '',
-  // References
-  quickAddRefToTalentPool: false,
-  referrer: '',
-  // Work Experience
-  recentWork: '',
-  workExperiences: [
-    { workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' },
-  ],
+//#region Validation Schema
+const validationSchema = yup.object({
+  fullName: yup
+    .string()
+    .required('Họ và tên là bắt buộc')
+    .min(2, 'Họ và tên phải có ít nhất 2 ký tự'),
+  appliedDate: yup.string().required('Ngày ứng tuyển là bắt buộc'),
+  email: yup.string().email('Email không hợp lệ').nullable(),
+  phone: yup
+    .string()
+    .matches(/^[0-9]*$/, 'Số điện thoại chỉ chứa số')
+    .nullable(),
 })
+
+const {
+  handleSubmit,
+  errors,
+  resetForm: resetValidation,
+  setFieldValue,
+} = useForm({
+  validationSchema,
+  initialValues: {
+    fullName: '',
+    dob: '',
+    gender: '',
+    area: '',
+    phone: '',
+    email: '',
+    address: '',
+    appliedDate: '',
+    source: '',
+    exploiter: '',
+    collaborator: '',
+    referrer: '',
+    recentWork: '',
+  },
+})
+
+// Define validated fields
+const { value: fullName } = useField('fullName')
+const { value: dob } = useField('dob')
+const { value: gender } = useField('gender')
+const { value: area } = useField('area')
+const { value: phone } = useField('phone')
+const { value: email } = useField('email')
+const { value: address } = useField('address')
+const { value: appliedDate } = useField('appliedDate')
+const { value: source } = useField('source')
+const { value: exploiter } = useField('exploiter')
+const { value: collaborator } = useField('collaborator')
+const { value: referrer } = useField('referrer')
+const { value: recentWork } = useField('recentWork')
+//#endregion
+
+//#region State
+const educations = ref([{ eduLevel: '', school: '', major: '' }])
+const workExperiences = ref([
+  { workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' },
+])
+const quickAddRefToTalentPool = ref(false)
+const showReferrerInput = ref(false)
 
 const cvFile = ref(null)
 const avatarImage = ref(null)
@@ -127,12 +165,12 @@ const handleAvatarUpload = (event) => {
 }
 
 const addEducation = () => {
-  formData.value.educations.push({ eduLevel: '', school: '', major: '' })
+  educations.value.push({ eduLevel: '', school: '', major: '' })
   expandedEducations.value.push(true)
 }
 
 const addWorkExperience = () => {
-  formData.value.workExperiences.push({
+  workExperiences.value.push({
     workplace: '',
     workFrom: '',
     workTo: '',
@@ -142,27 +180,19 @@ const addWorkExperience = () => {
   expandedWorkExperiences.value.push(true)
 }
 
-// const removeWorkExperience = (index) => {
-//   formData.value.workExperiences.splice(index, 1)
-//   expandedWorkExperiences.value.splice(index, 1)
-// }
-
-// const toggleEducation = (index) => {
-//   expandedEducations.value[index] = !expandedEducations.value[index]
-// }
-
-// const toggleWorkExperience = (index) => {
-//   expandedWorkExperiences.value[index] = !expandedWorkExperiences.value[index]
-// }
-
-const handleConfirm = () => {
+const handleConfirm = handleSubmit((values) => {
   emit('submit', {
     mode: props.mode,
-    data: formData.value,
+    data: {
+      ...values,
+      educations: educations.value,
+      workExperiences: workExperiences.value,
+      quickAddRefToTalentPool: quickAddRefToTalentPool.value,
+    },
     cvFile: cvFile.value,
     avatarImage: avatarImage.value,
   })
-}
+})
 
 const handleCancel = () => {
   resetForm()
@@ -172,47 +202,36 @@ const handleCancel = () => {
 
 const resetForm = () => {
   if (props.mode === 'edit' && props.candidate) {
-    formData.value = {
-      fullName: props.candidate.fullName || '',
-      dob: props.candidate.dob || '',
-      gender: props.candidate.gender || '',
-      area: props.candidate.area || '',
-      phone: props.candidate.phone || '',
-      email: props.candidate.email || '',
-      address: props.candidate.address || '',
-      educations: props.candidate.educations || [{ eduLevel: '', school: '', major: '' }],
-      appliedDate: props.candidate.appliedDate || '',
-      source: props.candidate.source || '',
-      exploiter: props.candidate.exploiter || '',
-      collaborator: props.candidate.collaborator || '',
-      quickAddRefToTalentPool: props.candidate.quickAddRefToTalentPool || false,
-      referrer: props.candidate.referrer || '',
-      recentWork: props.candidate.recentWork || '',
-      workExperiences: props.candidate.workExperiences || [
-        { workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' },
-      ],
-    }
+    setFieldValue('fullName', props.candidate.fullName || '')
+    setFieldValue('dob', props.candidate.dob || '')
+    setFieldValue('gender', props.candidate.gender || '')
+    setFieldValue('area', props.candidate.area || '')
+    setFieldValue('phone', props.candidate.phone || '')
+    setFieldValue('email', props.candidate.email || '')
+    setFieldValue('address', props.candidate.address || '')
+    setFieldValue('appliedDate', props.candidate.appliedDate || '')
+    setFieldValue('source', props.candidate.source || '')
+    setFieldValue('exploiter', props.candidate.exploiter || '')
+    setFieldValue('collaborator', props.candidate.collaborator || '')
+    setFieldValue('referrer', props.candidate.referrer || '')
+    setFieldValue('recentWork', props.candidate.recentWork || '')
+
+    educations.value = props.candidate.educations
+      ? JSON.parse(JSON.stringify(props.candidate.educations))
+      : [{ eduLevel: '', school: '', major: '' }]
+    workExperiences.value = props.candidate.workExperiences
+      ? JSON.parse(JSON.stringify(props.candidate.workExperiences))
+      : [{ workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' }]
+    quickAddRefToTalentPool.value = props.candidate.quickAddRefToTalentPool || false
+    showReferrerInput.value = !!props.candidate.referrer
   } else {
-    formData.value = {
-      fullName: '',
-      dob: '',
-      gender: '',
-      area: '',
-      phone: '',
-      email: '',
-      address: '',
-      educations: [{ eduLevel: '', school: '', major: '' }],
-      appliedDate: '',
-      source: '',
-      exploiter: '',
-      collaborator: '',
-      quickAddRefToTalentPool: false,
-      referrer: '',
-      recentWork: '',
-      workExperiences: [
-        { workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' },
-      ],
-    }
+    resetValidation()
+    educations.value = [{ eduLevel: '', school: '', major: '' }]
+    workExperiences.value = [
+      { workplace: '', workFrom: '', workTo: '', workTitle: '', workDescription: '' },
+    ]
+    quickAddRefToTalentPool.value = false
+    showReferrerInput.value = false
   }
   cvFile.value = null
   avatarImage.value = null
@@ -310,29 +329,26 @@ watch(
           <!-- Basic Info Section -->
           <div class="form-row form-row--full">
             <label class="form-label">Họ và tên <span class="req">*</span></label>
-            <MsInput v-model="formData.fullName" placeholder="Nhập họ và tên" />
+            <MsInput v-model="fullName" placeholder="Nhập họ và tên" :error="!!errors.fullName" />
+            <span v-if="errors.fullName" class="form-error">{{ errors.fullName }}</span>
           </div>
 
           <div class="form-grid">
             <div class="form-row">
               <label class="form-label">Ngày sinh</label>
-              <MsInput v-model="formData.dob" type="date" />
+              <MsDatePicker v-model="dob" placeholder="dd/MM/yyyy" />
             </div>
 
             <div class="form-row">
               <label class="form-label">Giới tính</label>
-              <MsSelect
-                v-model="formData.gender"
-                placeholder="Chọn giới tính"
-                :options="genderOptions"
-              />
+              <MsSelect v-model="gender" placeholder="Chọn giới tính" :options="genderOptions" />
             </div>
           </div>
 
           <div class="form-row form-row--full">
             <label class="form-label">Khu vực</label>
             <div class="input-with-more">
-              <MsSelect v-model="formData.area" placeholder="Chọn giá trị" :options="areaOptions" />
+              <MsSelect v-model="area" placeholder="Chọn giá trị" :options="areaOptions" />
               <button type="button" class="more-btn" aria-label="more">…</button>
             </div>
           </div>
@@ -340,24 +356,26 @@ watch(
           <div class="form-grid">
             <div class="form-row">
               <label class="form-label">Số điện thoại</label>
-              <MsInput v-model="formData.phone" placeholder="Nhập số điện thoại" />
+              <MsInput v-model="phone" placeholder="Nhập số điện thoại" :error="!!errors.phone" />
+              <span v-if="errors.phone" class="form-error">{{ errors.phone }}</span>
             </div>
 
             <div class="form-row">
               <label class="form-label">Email</label>
-              <MsInput v-model="formData.email" type="email" placeholder="Nhập Email" />
+              <MsInput v-model="email" placeholder="Nhập Email" :error="!!errors.email" />
+              <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
             </div>
           </div>
 
           <div class="form-row form-row--full">
             <label class="form-label">Địa chỉ</label>
-            <MsInput v-model="formData.address" placeholder="Nhập địa chỉ" />
+            <MsInput v-model="address" placeholder="Nhập địa chỉ" />
           </div>
 
           <!-- Education Section -->
           <div class="section-title">HỌC VẤN</div>
 
-          <div v-for="(edu, eduIdx) in formData.educations" :key="eduIdx" class="education-item">
+          <div v-for="(edu, eduIdx) in educations" :key="eduIdx" class="education-item">
             <div class="form-row form-row--full form-row--inline">
               <label class="form-label form-label--dot">Trình độ đào tạo</label>
               <div class="input-with-actions">
@@ -402,13 +420,18 @@ watch(
           <div class="form-grid">
             <div class="form-row">
               <label class="form-label">Ngày ứng tuyển <span class="req">*</span></label>
-              <MsInput v-model="formData.appliedDate" type="date" required />
+              <MsDatePicker
+                v-model="appliedDate"
+                placeholder="dd/MM/yyyy"
+                :error="!!errors.appliedDate"
+              />
+              <span v-if="errors.appliedDate" class="form-error">{{ errors.appliedDate }}</span>
             </div>
 
             <div class="form-row">
               <label class="form-label">Nguồn ứng viên</label>
               <MsSelect
-                v-model="formData.source"
+                v-model="source"
                 placeholder="Chọn nguồn ứng viên"
                 :options="sourceOptions"
               />
@@ -419,7 +442,7 @@ watch(
             <div class="form-row">
               <label class="form-label">Nhân sự khai thác</label>
               <MsSelect
-                v-model="formData.exploiter"
+                v-model="exploiter"
                 placeholder="Chọn nhân sự khai thác"
                 :options="exploiterOptions"
               />
@@ -428,7 +451,7 @@ watch(
             <div class="form-row">
               <label class="form-label">Cộng tác viên</label>
               <MsSelect
-                v-model="formData.collaborator"
+                v-model="collaborator"
                 placeholder="Chọn cộng tác viên"
                 :options="collaboratorOptions"
               />
@@ -438,7 +461,7 @@ watch(
           <!-- References Section -->
           <div class="form-row form-row--full">
             <label class="form-checkbox">
-              <input v-model="formData.quickAddRefToTalentPool" type="checkbox" />
+              <input v-model="quickAddRefToTalentPool" type="checkbox" />
               <span>Thêm nhanh người tham chiếu vào kho ứng viên</span>
             </label>
           </div>
@@ -451,27 +474,23 @@ watch(
 
           <div class="form-row form-row--full" v-else>
             <label class="form-label">Người giới thiệu</label>
-            <MsInput v-model="formData.referrer" placeholder="Nhập người giới thiệu" />
+            <MsInput v-model="referrer" placeholder="Nhập người giới thiệu" />
           </div>
 
           <div class="form-row form-row--full">
             <label class="form-label">Nơi làm việc gần đây</label>
-            <MsInput v-model="formData.recentWork" placeholder="Nhập nơi làm việc gần đây" />
+            <MsInput v-model="recentWork" placeholder="Nhập nơi làm việc gần đây" />
           </div>
 
           <!-- Work Experience Section -->
-          <div class="form-row form-row--full" v-if="formData.workExperiences.length === 0">
+          <div class="form-row form-row--full" v-if="workExperiences.length === 0">
             <button type="button" class="btn-link-add" @click="addWorkExperience">
               <span class="icon-plus">+</span> Thêm kinh nghiệm làm việc
             </button>
           </div>
 
           <div v-else>
-            <div
-              v-for="(work, workIdx) in formData.workExperiences"
-              :key="workIdx"
-              class="work-item"
-            >
+            <div v-for="(work, workIdx) in workExperiences" :key="workIdx" class="work-item">
               <div class="form-row form-row--full">
                 <label class="form-label">Nơi làm việc</label>
                 <MsInput v-model="work.workplace" placeholder="Nhập nơi làm việc" />
@@ -480,9 +499,9 @@ watch(
               <div class="form-row form-row--full">
                 <label class="form-label">Thời gian</label>
                 <div class="form-row__two">
-                  <MsInput v-model="work.workFrom" type="month" placeholder="MM/yyyy" />
+                  <MsDatePicker v-model="work.workFrom" placeholder="dd/MM/yyyy" />
                   <span class="dash">-</span>
-                  <MsInput v-model="work.workTo" type="month" placeholder="MM/yyyy" />
+                  <MsDatePicker v-model="work.workTo" placeholder="dd/MM/yyyy" />
                 </div>
               </div>
 
@@ -506,6 +525,13 @@ watch(
 <style scoped>
 .candidate-modal-content {
   padding: 16px 0;
+}
+
+/* Form Error Message */
+.form-error {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 /* CV Dropzone */

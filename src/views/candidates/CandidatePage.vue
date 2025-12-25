@@ -114,6 +114,9 @@ import CandidateTable from './components/CandidateTable.vue'
 import CandidateModal from './components/CandidateModal.vue'
 import CandidateEditModal from './components/CandidateEditModal.vue'
 import DeleteConfirmModal from './components/DeleteConfirmModal.vue'
+import { useToast } from '@/composables/useToast'
+
+const { success, error } = useToast()
 
 const LS_KEY = 'misa_candidates'
 
@@ -309,53 +312,74 @@ function onEditCandidate(candidate) {
 
 /**
  * Xử lý submit form thêm/chỉnh sửa ứng viên
- * @param {Object} formData - Dữ liệu form
+ * @param {Object} payload - Dữ liệu từ modal { mode, data, cvFile, avatarImage }
  * @createdBy: dchao - 24.12.2025
  */
-function onCandidateModalSubmit(formData) {
+function onCandidateModalSubmit(payload) {
   modalLoading.value = true
+  const formData = payload.data || payload
 
   // Simulate API call
   setTimeout(() => {
-    const allCandidates = loadCandidates()
+    try {
+      const candidatesList = loadCandidates()
 
-    // Add new candidate
-    const newCandidate = {
-      id: Math.max(0, ...allCandidates.map((c) => c.id || 0)) + 1,
-      ...formData,
-      appliedDate: new Date().toISOString().split('T')[0],
-      source: 'Manual',
-      rate: 0,
-      personaFit: 0,
+      // Generate new ID - use timestamp + random to ensure uniqueness
+      const newId = `cand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      // Add new candidate
+      const newCandidate = {
+        id: newId,
+        ...formData,
+        appliedDate: formData.appliedDate || new Date().toISOString().split('T')[0],
+        source: formData.source || 'Manual',
+        rate: 0,
+        personaFit: 0,
+      }
+      candidatesList.push(newCandidate)
+
+      // Save to localStorage
+      localStorage.setItem(LS_KEY, JSON.stringify(candidatesList))
+      allCandidates.value = [...candidatesList]
+
+      // Close modal and show success
+      candidateModalVisible.value = false
+      success(`Đã thêm ứng viên "${newCandidate.fullName}" thành công!`)
+    } catch (err) {
+      error('Có lỗi xảy ra khi thêm ứng viên. Vui lòng thử lại.')
+      console.error(err)
+    } finally {
+      modalLoading.value = false
     }
-    allCandidates.push(newCandidate)
-
-    // Save to localStorage
-    localStorage.setItem(LS_KEY, JSON.stringify(allCandidates))
-    allCandidates.value = allCandidates
-
-    // Close modal
-    candidateModalVisible.value = false
-    modalLoading.value = false
   }, 500)
 }
 
 function onCandidateEditModalSubmit({ data }) {
   modalLoading.value = true
   setTimeout(() => {
-    const allCandidates = loadCandidates()
-    const idx = allCandidates.findIndex((c) => c.id === currentCandidate.value.id)
+    try {
+      const candidatesList = loadCandidates()
+      const idx = candidatesList.findIndex(
+        (c) => String(c.id) === String(currentCandidate.value.id),
+      )
 
-    if (idx !== -1) {
-      allCandidates[idx] = { ...allCandidates[idx], ...data }
+      if (idx !== -1) {
+        candidatesList[idx] = { ...candidatesList[idx], ...data }
 
-      // Save to localStorage
-      localStorage.setItem(LS_KEY, JSON.stringify(allCandidates))
-      allCandidates.value = allCandidates
+        // Save to localStorage
+        localStorage.setItem(LS_KEY, JSON.stringify(candidatesList))
+        allCandidates.value = [...candidatesList]
+
+        success(`Đã cập nhật thông tin ứng viên "${data.fullName}" thành công!`)
+      }
+
+      candidateEditModalVisible.value = false
+    } catch (err) {
+      error('Có lỗi xảy ra khi cập nhật ứng viên. Vui lòng thử lại.')
+      console.error(err)
+    } finally {
+      modalLoading.value = false
     }
-
-    candidateEditModalVisible.value = false
-    modalLoading.value = false
   }, 500)
 }
 
@@ -368,18 +392,42 @@ function onDeleteConfirm() {
 
   // Simulate API call
   setTimeout(() => {
-    const allCandidates = loadCandidates()
-    const selectedArray = Array.from(selectedIds.value)
+    try {
+      const candidatesList = loadCandidates()
+      // Convert selected IDs to strings for comparison (handles both string and number IDs)
+      const selectedArray = Array.from(selectedIds.value).map((id) => String(id))
+      const deleteCount = selectedArray.length
 
-    // Remove selected candidates
-    const filtered = allCandidates.filter((c) => !selectedArray.includes(String(c.id)))
-    localStorage.setItem(LS_KEY, JSON.stringify(filtered))
-    allCandidates.value = filtered
+      console.log('Selected IDs to delete:', selectedArray)
+      console.log(
+        'Candidates before delete:',
+        candidatesList.map((c) => c.id),
+      )
 
-    // Clear selection and close modal
-    clearSelection()
-    deleteModalVisible.value = false
-    modalLoading.value = false
+      // Remove selected candidates - compare as strings
+      const remainingCandidates = candidatesList.filter(
+        (c) => !selectedArray.includes(String(c.id)),
+      )
+
+      console.log(
+        'Remaining candidates:',
+        remainingCandidates.map((c) => c.id),
+      )
+
+      localStorage.setItem(LS_KEY, JSON.stringify(remainingCandidates))
+      allCandidates.value = [...remainingCandidates]
+
+      // Clear selection and close modal
+      clearSelection()
+      deleteModalVisible.value = false
+
+      success(`Đã xóa ${deleteCount} ứng viên thành công!`)
+    } catch (err) {
+      error('Có lỗi xảy ra khi xóa ứng viên. Vui lòng thử lại.')
+      console.error(err)
+    } finally {
+      modalLoading.value = false
+    }
   }, 500)
 }
 </script>
